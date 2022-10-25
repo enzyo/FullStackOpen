@@ -13,7 +13,12 @@ const VoteButton = (props) =>
 const MostVotes = (props) =>
 {
 	let max = props.stats.indexOf(Math.max(...props.stats))
-	return (<p>{props.content[max]}</p>)
+	return (
+		<>
+		{props.content[max]}<br />
+		has {props.stats[max]} votes
+		</>
+		)
 }
 
 const App = () => {
@@ -46,6 +51,7 @@ const App = () => {
     <div>
 		<h1>Anecdote of the day</h1>
 		{anecdotes[selected]} <br />
+		has {votes[selected]} votes <br />
 		<VoteButton addvote = {() => voteSelected()}/>
 		<RandButton next = {() => selectRandom()} />
 		<h1>Anecdote with most votes</h1>
