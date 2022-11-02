@@ -6,11 +6,9 @@ const Total = ({ sum }) =>
 {
 	let values = Object.values(sum.map(course => course.exercises))
 	return (
-		<strong>total of
-		{
-			values.reduce((a, b) => (a + b), 0)
-		}
-		exercises</strong>
+		<strong>total of {
+			values.reduce((a, b) => a + b, 0)
+		} exercises</strong>
 	)
 }
 
