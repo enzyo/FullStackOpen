@@ -1,41 +1,93 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
 import Filter from './components/Filter'
 import PersonForm from './components/PersonForm'
 import Persons from './components/Persons'
+import phonebook from './services/phonebook'
+import Notification from './components/Notification'
 
 const App = () => {
   const [persons, setPersons] = useState([])
   const [personsToShow, setPersonsToShow] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
+  const [message, setMessage] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
+
 
 useEffect(() =>
 {
-	axios.get('http://localhost:3001/persons')
-		.then(response =>
-			{
-				setPersons(response.data)
-				setPersonsToShow(response.data)
-			})
+	phonebook
+	.getAll()
+	.then(response =>
+	{
+		setPersons(response.data)
+		setPersonsToShow(response.data)
+	})
 }, [])
 
-  const addPerson = (e) => 
-  {
-	  e.preventDefault()
-	  let newPerson = { name: newName, number: newNumber, id: persons.length + 1 }
-	  if (persons.some((person) => person.name === newName))
+const addPerson = (e) => 
+{
+	e.preventDefault()
+
+	//get latest data and fill local id gaps
+	let newid = phonebook.getAll().then(response => setPersons(response.data))
+	newid = [...persons].sort((a, b) => a.id - b.id)
+	newid = newid.find((person, i) => person.id !== i + 1)
+	if (newid === undefined) //no gaps found
+		newid = persons.length + 1
+	else newid = newid.id - 1
+
+	let newObject = { name: newName, number: newNumber, id: newid }
+	
+	if (persons.some((person) => person.name === newName))
+	{
+		if (persons.some((person) => person.number === newNumber))
 		{
-			alert(`${newName} is already added to phonebook`)
+			setErrorMessage(`${newName} is already added to phonebook`)
+			alert(`${newName} is already added to phonebook`) //unnecessary?
 		}
-	  else 
+		else 
 		{
-			setPersons(persons.concat(newPerson))
-			setPersonsToShow(personsToShow.concat(newPerson))
+			newObject = [...persons].find(person => person.name === newName)
+			newObject = {...newObject, number: newNumber}
+			phonebook.update(newObject)
+			.then(updatedPerson =>
+			{
+				if (!updatedPerson) return //cancel
+				const updatedPersons = persons.map(person =>
+										person.id === updatedPerson.id ?
+										updatedPerson : person)
+				setPersonsToShow(updatedPersons)
+				setPersons(updatedPersons)
+				setMessage(`Updated ${newName}`)
+			})
+			.catch(error =>
+			{	
+				console.error('Failed: ', error.response.data)
+				setErrorMessage(`Information of ${newName} has already been removed from server`)
+			})
 		}
-	  setNewName('')
-	  setNewNumber('')
-  }
+	}
+	else 
+	{
+		phonebook
+			.create(newObject)
+			.then((response) => 
+			{
+				setPersons(persons.concat(response.data))
+				setPersonsToShow(personsToShow.concat(response.data))
+				setMessage(`Added ${response.data.name}`)
+			})
+	}
+	setNewName('')
+	setNewNumber('')
+	setTimeout(() => 
+	{
+		setMessage(null)
+		setErrorMessage(null)
+	}, 5000)	
+}
+
   const handleSearch = (e) =>
   {
 	let text = e.target.value.toLowerCase()
@@ -54,18 +106,20 @@ useEffect(() =>
   }
   return (
     <div>
-      <h2>Phonebook</h2>
-	  <Filter handleSearch={handleSearch} />
-      <h2>add a new</h2>
-	  <PersonForm addPerson={addPerson}
+    	<h2>Phonebook</h2>
+		<Notification message={message} errorMessage={errorMessage}/>
+		<Filter		handleSearch={handleSearch} />
+    	<h2>add a new</h2>
+		<PersonForm addPerson={addPerson}
 	  				nameValue={newName}
 					numberValue={newNumber}
 	  				handleNewName={handleNewName}
 	  				handleNewNumber={handleNewNumber}/>
-      
-      <h2>Numbers</h2>
-	  <Persons personsToShow={personsToShow}/>
- 
+    	<h2>Numbers</h2>
+		<Persons	personsToShow={personsToShow}
+	  				setPersonsToShow={setPersonsToShow}
+					setPersons={setPersons}
+					setErrorMessage={setErrorMessage}/>
     </div>
   )
 }
